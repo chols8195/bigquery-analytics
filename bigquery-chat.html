@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery AI Analytics Chat</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Login Container Styles */
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .login-form h2 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        .login-form p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: #d63384;
+            border: 1px solid #f5c2c7;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 1200px;
+            height: 80vh;
+            display: none;
+            overflow: hidden;
+        }
+
+        .chat-layout {
+            display: flex;
+            height: 100%;
+        }
+
+        /* Sidebar Styles */
+        .chat-sidebar {
+            width: 280px;
+            background: #f8f9fa;
+            border-right: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            border-radius: 20px 0 0 20px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .new-chat-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s ease;
+        }
+
+        .new-chat-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .chat-item {
+            padding: 12px 16px;
+            margin: 4px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .chat-item:hover {
+            background: #e9ecef;
+        }
+
+        .chat-item.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .chat-item-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .chat-item-preview {
+            font-size: 12px;
+            opacity: 0.7;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .chat-item-date {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 4px;
+        }
+
+        /* Main Chat Area */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 0 20px 0 0;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .user-details h1 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .user-details p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .ai-message {
+            background: #f8f9fa;
+            color: #333;
+            align-self: flex-start;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 3px;
+        }
+
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
+            background: #666;
+            border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite both;
+        }
+
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        .chat-input-container {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sample-questions {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sample-question {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            padding: 8px 15px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sample-question:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: #d63384;
+            border: 1px solid #f5c2c7;
+        }
+
+        .data-table {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+
+        .data-table table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .data-table th {
+            background: #e9ecef;
+            font-weight: 600;
+        }
+
+        .dataset-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin: 15px 0 10px 0;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            font-size: 16px;
+        }
+
+        .table-name {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            color: #1565c0;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            border: 1px solid #90caf9;
+            display: inline-block;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .data-summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            margin: 15px 0;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .summary-header {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .summary-header h3 {
+            margin: 0;
+            color: white;
+            font-size: 18px;
+        }
+
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            color: white;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .summary-footer {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .summary-footer p {
+            margin: 0;
+            color: white;
+            font-size: 14px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container" id="loginContainer">
+        <div class="login-form">
+            <h2>🔐 Login to BigQuery Analytics</h2>
+            <p>Sign in with your company Google account</p>
+            
+            <div id="loginError" class="error-message" style="display: none;">
+                Please use your @nuviewanalytics.com email address to access this application.
+            </div>
+            
+            <div id="g_id_onload"
+                 data-client_id="692364032080-dmt1hg1h7p6cb88seaon2mfmm6e1smjn.apps.googleusercontent.com"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-size="large"
+                 data-theme="outline"
+                 data-text="sign_in_with"
+                 data-shape="rectangular"
+                 data-logo_alignment="left">
+            </div>
+            
+            <p style="margin-top: 20px; font-size: 12px; color: #999;">
+                Only @nuviewanalytics.com accounts are allowed<br>
+                <em>BigQuery access uses secure service account authentication</em>
+            </p>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="chat-layout">
+            <!-- Sidebar -->
+            <div class="chat-sidebar">
+                <div class="sidebar-header">
+                    <button class="new-chat-btn" onclick="createNewChat()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 4v16m8-8H4"/>
+                        </svg>
+                        New Chat
+                    </button>
+                </div>
+                <div class="chat-history" id="chatHistory">
+                    <!-- Chat history items will be populated here -->
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="chat-main">
+                <div class="chat-header">
+                    <div class="user-info">
+                        <img id="userAvatar" src="" alt="User" class="user-avatar">
+                        <div class="user-details">
+                            <h1>🤖 BigQuery AI Analytics</h1>
+                            <p id="welcomeText">Welcome!</p>
+                        </div>
+                    </div>
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                </div>
+                
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai-message">
+                        👋 Hello! I'm your AI data analyst. I can help you explore and analyze your BigQuery data. 
+                        <br><br>
+                        Try asking me questions like:
+                        <div class="sample-questions">
+                            <span class="sample-question" onclick="askQuestion('What datasets do we have available?')">What datasets do we have?</span>
+                            <span class="sample-question" onclick="askQuestion('Show me revenue trends')">Show me revenue trends</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <form class="chat-input-form" id="chatForm">
+                        <input 
+                            type="text" 
+                            class="chat-input" 
+                            id="chatInput" 
+                            placeholder="Ask me anything about your data..."
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="send-button" id="sendButton">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Chat management variables
+        let currentChatId = null;
+        let chatHistory = [];
+
+        // Replace with your actual webhook URL
+        const WEBHOOK_URL = 'https://YOUR_N8N_URL/webhook/chat';
+        
+        // Replace with your allowed domain
+        const ALLOWED_DOMAIN = '@nuviewanalytics.com';
+
+        // Generate unique chat ID
+        function generateChatId() {
+            return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Create new chat
+        function createNewChat() {
+            // Auto-save current chat if it has messages
+            if (currentChatId && chatMessages.children.length > 1) {
+                autoSaveCurrentChat();
+            }
+
+            // Create new chat
+            currentChatId = generateChatId();
+            
+            // Clear messages
+            resetChatMessages();
+            
+            // Update sidebar
+            updateChatHistory();
+            
+            // Focus input
+            chatInput.focus();
+        }
+
+        // Save current chat to history
+        function saveChatToHistory() {
+            if (!currentChatId) return;
+
+            const messages = Array.from(chatMessages.children);
+            if (messages.length <= 1) return; // Only default message
+
+            const firstUserMessage = messages.find(msg => msg.classList.contains('user-message'));
+            
+            // Generate smart title based on first user message
+            const smartTitle = generateSmartTitle(firstUserMessage ? firstUserMessage.textContent : '');
+
+            const chatData = {
+                id: currentChatId,
+                title: smartTitle,
+                preview: firstUserMessage ? firstUserMessage.textContent.substring(0, 60) + '...' : '',
+                timestamp: new Date().toISOString(),
+                messages: messages.map(msg => ({
+                    type: msg.classList.contains('user-message') ? 'user' : 'ai',
+                    content: msg.innerHTML,
+                    timestamp: new Date().toISOString()
+                }))
+            };
+
+            // Remove existing chat with same ID
+            chatHistory = chatHistory.filter(chat => chat.id !== currentChatId);
+            
+            // Add to beginning of history
+            chatHistory.unshift(chatData);
+            
+            // Limit to 50 chats
+            if (chatHistory.length > 50) {
+                chatHistory = chatHistory.slice(0, 50);
+            }
+
+            // Save to localStorage immediately
+            saveToStorage();
+        }
+
+        // Generate smart title based on message content
+        function generateSmartTitle(message) {
+            if (!message) return 'New Conversation';
+            
+            const msg = message.toLowerCase().trim();
+            
+            // Data-related queries
+            if (msg.includes('dataset') && msg.includes('available')) return '📊 Dataset Discovery';
+            if (msg.includes('dataset') || msg.includes('schema')) return '📊 Data Exploration';
+            if (msg.includes('query') && msg.includes('sql')) return '🔍 SQL Query';
+            if (msg.includes('mpj')) return '📋 MPJ Dataset Analysis';
+            if (msg.includes('fred')) return '📈 Fred Dataset Analysis';
+            if (msg.includes('capacity')) return '⚡ Capacity Planning';
+            if (msg.includes('revenue') || msg.includes('sales')) return '💰 Revenue Analysis';
+            if (msg.includes('trend') || msg.includes('analysis')) return '📈 Data Analysis';
+            
+            // Personal information
+            if (msg.includes('my name is')) return '👤 Personal Info';
+            if (msg.includes('i work') || msg.includes('department')) return '🏢 Work Profile';
+            if (msg.includes('prefer') || msg.includes('like')) return '⚙️ Preferences';
+            
+            // Questions
+            if (msg.startsWith('what') || msg.startsWith('how') || msg.startsWith('show')) {
+                // Extract key words for more specific titles
+                if (msg.includes('name')) return '❓ Personal Query';
+                if (msg.includes('table') || msg.includes('column')) return '🗂️ Schema Query';
+                return '❓ Data Question';
+            }
+            
+            // Greetings
+            if (msg.includes('hello') || msg.includes('hi')) return '👋 Getting Started';
+            
+            // Default: Use first few words
+            const words = message.split(' ').slice(0, 4).join(' ');
+            return words.length > 25 ? words.substring(0, 25) + '...' : words;
+        }
+
+        // Auto-save current chat
+        function autoSaveCurrentChat() {
+            if (!currentChatId) return;
+            
+            const messages = Array.from(chatMessages.children);
+            if (messages.length <= 1) return; // Only default message
+
+            const firstUserMessage = messages.find(msg => msg.classList.contains('user-message'));
+            const smartTitle = generateSmartTitle(firstUserMessage ? firstUserMessage.textContent : '');
+
+            const chatData = {
+                id: currentChatId,
+                title: smartTitle,
+                preview: firstUserMessage ? firstUserMessage.textContent.substring(0, 60) + '...' : '',
+                timestamp: new Date().toISOString(),
+                messages: messages.map(msg => ({
+                    type: msg.classList.contains('user-message') ? 'user' : 'ai',
+                    content: msg.innerHTML,
+                    timestamp: new Date().toISOString()
+                })),
+                isActive: true // Mark as current active chat
+            };
+
+            // Update existing chat or add new one
+            const existingIndex = chatHistory.findIndex(chat => chat.id === currentChatId);
+            if (existingIndex >= 0) {
+                chatHistory[existingIndex] = chatData;
+            } else {
+                chatHistory.unshift(chatData);
+            }
+
+            // Save to localStorage immediately
+            saveToStorage();
+            updateChatHistory();
+        }
+
+        // Save to localStorage
+        function saveToStorage() {
+            const userEmail = sessionStorage.getItem('userEmail');
+            if (userEmail) {
+                localStorage.setItem(`chatHistory_${userEmail}`, JSON.stringify(chatHistory));
+            }
+        }
+
+        // Load chat history for current user
+        function loadChatHistory() {
+            const userEmail = sessionStorage.getItem('userEmail');
+            if (userEmail) {
+                const saved = localStorage.getItem(`chatHistory_${userEmail}`);
+                if (saved) {
+                    chatHistory = JSON.parse(saved);
+                    
+                    // Find and restore active chat if it exists
+                    const activeChat = chatHistory.find(chat => chat.isActive);
+                    if (activeChat) {
+                        currentChatId = activeChat.id;
+                        loadChatMessages(activeChat);
+                        // Remove active flag
+                        activeChat.isActive = false;
+                        saveToStorage();
+                    }
+                }
+            }
+            updateChatHistory();
+        }
+
+        // Load chat messages without switching currentChatId
+        function loadChatMessages(chat) {
+            chatMessages.innerHTML = '';
+            chat.messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${msg.type}-message`;
+                messageDiv.innerHTML = msg.content;
+                chatMessages.appendChild(messageDiv);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Update chat history sidebar
+        function updateChatHistory() {
+            const historyContainer = document.getElementById('chatHistory');
+            
+            if (chatHistory.length === 0) {
+                historyContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 12px;">No chat history yet</div>';
+                return;
+            }
+
+            historyContainer.innerHTML = chatHistory.map(chat => `
+                <div class="chat-item ${chat.id === currentChatId ? 'active' : ''}" onclick="loadChat('${chat.id}')">
+                    <div class="chat-item-title">${chat.title}</div>
+                    <div class="chat-item-preview">${chat.preview}</div>
+                    <div class="chat-item-date">${formatDate(chat.timestamp)}</div>
+                </div>
+            `).join('');
+        }
+
+        // Load specific chat
+        function loadChat(chatId) {
+            // Auto-save current chat first
+            if (currentChatId && chatMessages.children.length > 1) {
+                autoSaveCurrentChat();
+            }
+
+            const chat = chatHistory.find(c => c.id === chatId);
+            if (!chat) return;
+
+            currentChatId = chatId;
+            loadChatMessages(chat);
+            updateChatHistory();
+        }
+
+        // Reset chat messages to default
+        function resetChatMessages() {
+            chatMessages.innerHTML = `
+                <div class="message ai-message">
+                    👋 Hello! I'm your AI data analyst. I can help you explore and analyze your BigQuery data. 
+                    <br><br>
+                    Try asking me questions like:
+                    <div class="sample-questions">
+                        <span class="sample-question" onclick="askQuestion('What datasets do we have available?')">What datasets do we have?</span>
+                        <span class="sample-question" onclick="askQuestion('Show me revenue trends')">Show me revenue trends</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Format date for display
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 1) return 'Today';
+            if (diffDays === 2) return 'Yesterday';
+            if (diffDays <= 7) return `${diffDays - 1} days ago`;
+            return date.toLocaleDateString();
+        }
+
+        // Google OAuth callback function
+        function handleCredentialResponse(response) {
+            try {
+                // Decode the JWT token to get user info
+                const payload = JSON.parse(atob(response.credential.split('.')[1]));
+                
+                // Check if email domain is allowed
+                if (!payload.email.endsWith(ALLOWED_DOMAIN)) {
+                    showLoginError('Please use your @nuviewanalytics.com email address to access this application.');
+                    return;
+                }
+                
+                // Store user info (no Google token needed for BigQuery - service account handles that)
+                sessionStorage.setItem('userEmail', payload.email);
+                sessionStorage.setItem('userName', payload.name);
+                sessionStorage.setItem('userPicture', payload.picture);
+                
+                // Hide login, show chat
+                hideLoginError();
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'flex';
+                
+                // Update chat header with user info
+                updateUserInfo();
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                showLoginError('Authentication failed. Please try again.');
+            }
+        }
+
+        function showLoginError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideLoginError() {
+            document.getElementById('loginError').style.display = 'none';
+        }
+
+        function updateUserInfo() {
+            const userName = sessionStorage.getItem('userName');
+            const userPicture = sessionStorage.getItem('userPicture');
+            
+            if (userName && userPicture) {
+                document.getElementById('userAvatar').src = userPicture;
+                document.getElementById('welcomeText').textContent = `Welcome, ${userName.split(' ')[0]}!`;
+            }
+        }
+
+        function logout() {
+            // Auto-save current chat before logout
+            if (currentChatId && chatMessages.children.length > 1) {
+                autoSaveCurrentChat();
+            }
+
+            // Clear session storage
+            sessionStorage.removeItem('userEmail');
+            sessionStorage.removeItem('userName');
+            sessionStorage.removeItem('userPicture');
+            
+            // Reset chat state
+            currentChatId = null;
+            chatHistory = [];
+            
+            // Show login, hide chat
+            document.getElementById('loginContainer').style.display = 'block';
+            document.getElementById('chatContainer').style.display = 'none';
+            
+            // Clear chat messages
+            chatMessages.innerHTML = `
+                <div class="message ai-message">
+                    👋 Hello! I'm your AI data analyst. I can help you explore and analyze your BigQuery data. 
+                    <br><br>
+                    Try asking me questions like:
+                    <div class="sample-questions">
+                        <span class="sample-question" onclick="askQuestion('What datasets do we have available?')">What datasets do we have?</span>
+                        <span class="sample-question" onclick="askQuestion('Show me revenue trends')">Show me revenue trends</span>
+                    </div>
+                </div>
+            `;
+            
+            hideLoginError();
+        }
+
+        // Check if user is logged in
+        window.onload = function() {
+            const userEmail = sessionStorage.getItem('userEmail');
+            if (userEmail && userEmail.endsWith(ALLOWED_DOMAIN)) {
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'flex';
+                updateUserInfo();
+                loadChatHistory();
+                
+                // Create initial chat if none exists
+                if (!currentChatId) {
+                    createNewChat();
+                }
+            } else {
+                // Clear invalid session
+                logout();
+            }
+        }
+
+        // Initialize DOM references after page load
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            await sendMessage(message);
+        });
+
+        async function askQuestion(question) {
+            await sendMessage(question);
+        }
+
+        async function sendMessage(message) {
+            const userEmail = sessionStorage.getItem('userEmail');
+            const userName = sessionStorage.getItem('userName');
+            
+            // Check if user is still authenticated
+            if (!userEmail || !userEmail.endsWith(ALLOWED_DOMAIN)) {
+                logout();
+                return;
+            }
+
+            // Create new chat if none exists
+            if (!currentChatId) {
+                currentChatId = generateChatId();
+            }
+            
+            const requestBody = {
+                message: message,
+                user: userName,
+                user_email: userEmail,
+                chat_id: currentChatId,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            chatInput.value = '';
+            
+            // Show loading
+            const loadingId = addLoadingMessage();
+            
+            // Disable input
+            chatInput.disabled = true;
+            sendButton.disabled = true;
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Get response as text first
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    // Try to parse as JSON
+                    data = JSON.parse(responseText);
+                } catch (error) {
+                    // If it's not JSON, treat as plain text
+                    data = { answer: responseText };
+                }
+                
+                // Remove loading message
+                removeMessage(loadingId);
+                
+                // Handle different response formats
+                let responseMessage = '';
+                if (typeof data === 'string') {
+                    responseMessage = data;
+                } else if (data.output) {
+                    responseMessage = data.output;
+                } else if (data.answer) {
+                    responseMessage = data.answer;
+                } else if (data.response) {
+                    responseMessage = data.response;
+                } else if (data.text) {
+                    responseMessage = data.text;
+                } else if (data.content) {
+                    responseMessage = data.content;
+                } else if (data.message) {
+                    responseMessage = data.message;
+                } else if (data.result) {
+                    responseMessage = data.result;
+                } else {
+                    const values = Object.values(data);
+                    const stringValue = values.find(v => typeof v === 'string' && v.length > 10);
+                    if (stringValue) {
+                        responseMessage = stringValue;
+                    } else {
+                        responseMessage = "I received a response but couldn't extract the main content. Please try rephrasing your question.";
+                    }
+                }
+
+                addMessage(responseMessage, 'ai');
+                
+                // Auto-save after each message exchange
+                autoSaveCurrentChat();
+                
+                // Add summary card for dataset discovery responses
+                if (responseMessage.includes('datasets') && responseMessage.includes('tables')) {
+                    addDataSummaryCard(responseMessage);
+                }
+                
+                // If there's data, show it in a table
+                if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                    addDataTable(data.data);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                removeMessage(loadingId);
+                addMessage(`Sorry, I encountered an error: ${error.message}`, 'ai', 'error');
+            }
+
+            // Re-enable input
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+            chatInput.focus();
+        }
+
+        function addMessage(text, sender, type = 'normal') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message${type === 'error' ? ' error-message' : ''}`;
+            
+            if (sender === 'ai') {
+                const formattedText = formatAIResponse(text);
+                messageDiv.innerHTML = formattedText;
+            } else {
+                messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function formatAIResponse(text) {
+            let formatted = text;
+            
+            // Convert markdown headers
+            formatted = formatted.replace(/### (.*?)$/gm, '<div class="dataset-header">$1</div>');
+            formatted = formatted.replace(/^(\s*)-\s/gm, '$1• ');
+            
+            // Convert newlines to breaks but preserve indentation
+            formatted = formatted.replace(/\n  /g, '<br>&nbsp;&nbsp;&nbsp;&nbsp;');
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            // Format bold text
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Only match clear table names
+            formatted = formatted.replace(/\b([a-zA-Z][a-zA-Z0-9_]*_[a-zA-Z0-9_]+)\b/g, '<span class="table-name">$1</span>');
+            
+            return formatted;
+        }
+        
+        function addLoadingMessage() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ai-message loading';
+            loadingDiv.innerHTML = `
+                Analyzing your question...
+                <div class="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+            
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return loadingDiv;
+        }
+
+        function removeMessage(messageElement) {
+            if (messageElement && messageElement.parentNode) {
+                messageElement.parentNode.removeChild(messageElement);
+            }
+        }
+
+        function addDataTable(data) {
+            if (!data || data.length === 0) return;
+            
+            const tableDiv = document.createElement('div');
+            tableDiv.className = 'data-table';
+            
+            const headers = Object.keys(data[0]);
+            const tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(header => `<th>${header}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.slice(0, 10).map(row => `
+                            <tr>
+                                ${headers.map(header => `<td>${row[header] || ''}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                ${data.length > 10 ? `<p><em>Showing first 10 of ${data.length} results</em></p>` : ''}
+            `;
+            
+            tableDiv.innerHTML = tableHTML;
+            chatMessages.appendChild(tableDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addDataSummaryCard(responseText) {
+            const datasetMatches = responseText.match(/\d+\.\s\*\*[^*]+\*\*/g) || [];
+            const tableMatches = responseText.match(/([A-Za-z0-9_-]+\s*-\s*[A-Za-z0-9_\s-]+)/g) || [];
+            
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'data-summary-card';
+            
+            cardDiv.innerHTML = `
+                <div class="summary-header">
+                    <h3>📊 Data Discovery Summary</h3>
+                </div>
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">${datasetMatches.length}</div>
+                        <div class="stat-label">Datasets Found</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${tableMatches.length}+</div>
+                        <div class="stat-label">Tables Available</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">✅</div>
+                        <div class="stat-label">Connected</div>
+                    </div>
+                </div>
+                <div class="summary-footer">
+                    <p>💡 <em>Ask specific questions about any dataset or table for detailed analysis!</em></p>
+                </div>
+            `;
+            
+            chatMessages.appendChild(cardDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    </script>
+</body>
+</html>
